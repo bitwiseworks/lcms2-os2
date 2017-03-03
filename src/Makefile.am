@@ -1,6 +1,9 @@
 #
 # Makefile for building lcms 2 library
 #
+VENDOR ?=community
+BUILD_INFO=\#\#1\#\# $(shell date +'%d %b %Y %H:%M:%S')     $(shell uname -n)
+BUILDLEVEL_INFO=@\#$(VENDOR):$(VERSION)\#@$(BUILD_INFO)::::0)::
 
 # Don't require all the GNU mandated files
 AUTOMAKE_OPTIONS = 1.7 foreign
@@ -19,6 +22,7 @@ LIBRARY_AGE        = @LIBRARY_AGE@
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
 
 liblcms2_la_LDFLAGS = -no-undefined \
+  -buildlevel '$(BUILDLEVEL_INFO)' \
   -version-info $(LIBRARY_CURRENT):$(LIBRARY_REVISION):$(LIBRARY_AGE)
 
 liblcms2_la_LIBADD = $(LCMS_LIB_DEPLIBS)
