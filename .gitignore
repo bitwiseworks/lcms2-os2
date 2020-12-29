@@ -30,6 +30,7 @@ Thumbs.db
 *.cache
 *.ilk
 *.log
+*.exe
 [Bb]in
 [Dd]ebug*/
 *.sbr
@@ -45,3 +46,29 @@ packages/
 /testbed/.libs/lt-testcms
 /testbed/.libs/testcms
 /testbed/testcms
+#Xcode
+libtool
+Build
+DerivedData
+.libs
+/utils/transicc/transicc
+/utils/tificc/tificc
+/utils/psicc/psicc
+/utils/linkicc/linkicc
+/utils/jpgicc/jpgicc
+
+# ignore regenerated files
+Makefile.in
+aclocal.m4
+configure
+depcomp
+include/Makefile.in
+ltmain.sh
+missing
+src/Makefile.in
+testbed/Makefile.in
+utils/jpgicc/Makefile.in
+utils/linkicc/Makefile.in
+utils/psicc/Makefile.in
+utils/tificc/Makefile.in
+utils/transicc/Makefile.in
