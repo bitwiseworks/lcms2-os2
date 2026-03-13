@@ -78,6 +78,15 @@ utils/linkicc/Makefile.in
 utils/psicc/Makefile.in
 utils/tificc/Makefile.in
 utils/transicc/Makefile.in
+plugins/Makefile.in
+plugins/fast_float/Makefile.in
+plugins/fast_float/include/Makefile.in
+plugins/fast_float/src/Makefile.in
+plugins/fast_float/testbed/Makefile.in
+plugins/threaded/Makefile.in
+plugins/threaded/include/Makefile.in
+plugins/threaded/src/Makefile.in
+plugins/threaded/testbed/Makefile.in
 # ignore autogen.sh files
 compile
 m4/libtool.m4
