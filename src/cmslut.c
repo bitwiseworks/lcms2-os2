@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System
-//  Copyright (c) 1998-2020 Marti Maria Saguer
+//  Copyright (c) 1998-2026 Marti Maria Saguer
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the "Software"),
@@ -467,13 +467,16 @@ cmsUInt32Number CubeSize(const cmsUInt32Number Dims[], cmsUInt32Number b)
     for (rv = 1; b > 0; b--) {
 
         dim = Dims[b-1];
-        if (dim == 0) return 0;  // Error
+        if (dim <= 1) return 0;  // Error
 
         rv *= dim;
 
         // Check for overflow
         if (rv > UINT_MAX / dim) return 0;
     }
+
+    // Again, prevent overflow
+    if (rv > UINT_MAX / 15) return 0;
 
     return rv;
 }
@@ -814,7 +817,13 @@ cmsBool CMSEXPORT cmsStageSampleCLutFloat(cmsStage* mpe, cmsSAMPLERFLOAT Sampler
     cmsUInt32Number nInputs, nOutputs;
     cmsUInt32Number* nSamples;
     cmsFloat32Number In[MAX_INPUT_DIMENSIONS+1], Out[MAX_STAGE_CHANNELS];
-    _cmsStageCLutData* clut = (_cmsStageCLutData*) mpe->Data;
+    _cmsStageCLutData* clut;
+
+    if (mpe == NULL) return FALSE;
+
+    clut = (_cmsStageCLutData*)mpe->Data;
+
+    if (clut == NULL) return FALSE;
 
     nSamples = clut->Params ->nSamples;
     nInputs  = clut->Params ->nInputs;
@@ -1071,7 +1080,7 @@ cmsStage* _cmsStageNormalizeFromLabFloat(cmsContext ContextID)
     return mpe;
 }
 
-// Fom XYZ to floating point PCS
+// From XYZ to floating point PCS
 cmsStage* _cmsStageNormalizeFromXyzFloat(cmsContext ContextID)
 {
 #define n (32768.0/65535.0)
@@ -1226,6 +1235,11 @@ void* CMSEXPORT cmsStageData(const cmsStage* mpe)
     return mpe -> Data;
 }
 
+cmsContext CMSEXPORT cmsGetStageContextID(const cmsStage* mpe)
+{
+    return mpe -> ContextID;
+}
+
 cmsStage*  CMSEXPORT cmsStageNext(const cmsStage* mpe)
 {
     return mpe -> Next;
@@ -1337,7 +1351,7 @@ void _LUTeval16(CMSREGISTER const cmsUInt16Number In[], CMSREGISTER cmsUInt16Num
 
 // Does evaluate the LUT on cmsFloat32Number-basis.
 static
-void _LUTevalFloat(CMSREGISTER const cmsFloat32Number In[], CMSREGISTER cmsFloat32Number Out[], const void* D)
+void _LUTevalFloat(const cmsFloat32Number In[], cmsFloat32Number Out[], const void* D)
 {
     cmsPipeline* lut = (cmsPipeline*) D;
     cmsStage *mpe;
@@ -1658,7 +1672,7 @@ cmsUInt32Number CMSEXPORT cmsPipelineStageCount(const cmsPipeline* lut)
 // This function may be used to set the optional evaluator and a block of private data. If private data is being used, an optional
 // duplicator and free functions should also be specified in order to duplicate the LUT construct. Use NULL to inhibit such functionality.
 void CMSEXPORT _cmsPipelineSetOptimizationParameters(cmsPipeline* Lut,
-                                        _cmsOPTeval16Fn Eval16,
+                                        _cmsPipelineEval16Fn Eval16,
                                         void* PrivateData,
                                         _cmsFreeUserDataFn FreePrivateDataFn,
                                         _cmsDupUserDataFn  DupPrivateDataFn)

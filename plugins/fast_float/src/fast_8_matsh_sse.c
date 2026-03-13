@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System, fast floating point extensions
-//  Copyright (c) 1998-2020 Marti Maria Saguer, all rights reserved
+//  Copyright (c) 1998-2026 Marti Maria Saguer, all rights reserved
 //
 //
 // This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,8 @@
 
 #include "fast_float_internal.h"
 
+
+#ifndef CMS_DONT_USE_SSE2
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -166,6 +168,7 @@ XMatShaper8Data* SetMatShaper(cmsContext ContextID, cmsToneCurve* Curve1[3], cms
     return p;
 }
 
+
 // A fast matrix-shaper evaluator for 8 bits. 
 static
 void MatShaperXform8SSE(struct _cmstransform_struct *CMMcargo,
@@ -194,7 +197,9 @@ void MatShaperXform8SSE(struct _cmstransform_struct *CMMcargo,
     cmsUInt8Number* bout;
     cmsUInt8Number* aout = NULL;
 
-    cmsUInt32Number nalpha, strideIn, strideOut;
+    cmsUInt32Number nalpha;
+    size_t strideIn, strideOut;
+ 
  
     __m128 mat0 = _mm_load_ps(p->Mat[0]);
     __m128 mat1 = _mm_load_ps(p->Mat[1]);
@@ -211,6 +216,9 @@ void MatShaperXform8SSE(struct _cmstransform_struct *CMMcargo,
 
     _cmsComputeComponentIncrements(cmsGetTransformInputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneIn, NULL, &nalpha, SourceStartingOrder, SourceIncrements);
     _cmsComputeComponentIncrements(cmsGetTransformOutputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneOut, NULL, &nalpha, DestStartingOrder, DestIncrements);
+
+    if (!(_cmsGetTransformFlags(CMMcargo) & cmsFLAGS_COPY_ALPHA))
+        nalpha = 0;
 
     strideIn = strideOut = 0;
     for (i = 0; i < LineCount; i++) {
@@ -229,12 +237,12 @@ void MatShaperXform8SSE(struct _cmstransform_struct *CMMcargo,
                   aout = (cmsUInt8Number*)Output + DestStartingOrder[3] + strideOut;
            
            /**
-           * Prefectch
+           * Prefetch
            */
            __m128 rvector = _mm_set1_ps(p->Shaper1R[*rin]);
            __m128 gvector = _mm_set1_ps(p->Shaper1G[*gin]);
            __m128 bvector = _mm_set1_ps(p->Shaper1B[*bin]);
-
+        
            for (ii = 0; ii < PixelsPerLine; ii++) {
                                         
                __m128 el1 = _mm_mul_ps(rvector, mat0);
@@ -267,7 +275,7 @@ void MatShaperXform8SSE(struct _cmstransform_struct *CMMcargo,
                /**
                * Take next value whilst store is being performed
                */
-               if (i < PixelsPerLine - 1)
+               if (ii < PixelsPerLine - 1)
                {
                    rvector = _mm_set1_ps(p->Shaper1R[*rin]);
                    gvector = _mm_set1_ps(p->Shaper1G[*gin]);
@@ -315,7 +323,7 @@ cmsBool IsSSE2Available(void)
 
 
 //  8 bits on input allows matrix-shaper boost up a little bit
-cmsBool Optimize8MatrixShaperSSE(_cmsTransformFn* TransformFn,                                  
+cmsBool Optimize8MatrixShaperSSE(_cmsTransform2Fn* TransformFn,                                  
                                   void** UserData,
                                   _cmsFreeUserDataFn* FreeUserData,
                                   cmsPipeline** Lut, 
@@ -336,7 +344,7 @@ cmsBool Optimize8MatrixShaperSSE(_cmsTransformFn* TransformFn,
     // Check for SSE2 support
     if (!(IsSSE2Available())) return FALSE;
 
-    // Only works on RGB to RGB and gray to gray 
+    // Only works on 3 to 3, probably RGB 
     if ( !( (T_CHANNELS(*InputFormat) == 3 && T_CHANNELS(*OutputFormat) == 3) ) ) return FALSE;
                    
     // Only works on 8 bit input
@@ -396,8 +404,8 @@ cmsBool Optimize8MatrixShaperSSE(_cmsTransformFn* TransformFn,
         _cmsStageToneCurvesData* mpeC1 = (_cmsStageToneCurvesData*) cmsStageData(Curve1);
         _cmsStageToneCurvesData* mpeC2 = (_cmsStageToneCurvesData*) cmsStageData(Curve2);
                 
-        // In this particular optimization, caché does not help as it takes more time to deal with 
-        // the caché that with the pixel handling
+        // In this particular optimization, cache does not help as it takes more time to deal with 
+        // the cache than with the pixel handling
         *dwFlags |= cmsFLAGS_NOCACHE;
   
 
@@ -405,7 +413,7 @@ cmsBool Optimize8MatrixShaperSSE(_cmsTransformFn* TransformFn,
         *UserData = SetMatShaper(ContextID, mpeC1 ->TheCurves, &res, (cmsVEC3*) Data2 ->Offset, mpeC2->TheCurves);
         *FreeUserData = FreeMatShaper; 
 
-        *TransformFn = (_cmsTransformFn) MatShaperXform8SSE;         
+        *TransformFn = MatShaperXform8SSE;         
     }
 
     *dwFlags &= ~cmsFLAGS_CAN_CHANGE_FORMATTER;
@@ -414,4 +422,5 @@ cmsBool Optimize8MatrixShaperSSE(_cmsTransformFn* TransformFn,
     return TRUE;
 }
 
+#endif
 

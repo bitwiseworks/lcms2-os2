@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System, fast floating point extensions
-//  Copyright (c) 1998-2020 Marti Maria Saguer, all rights reserved
+//  Copyright (c) 1998-2026 Marti Maria Saguer, all rights reserved
 //
 //
 // This program is free software: you can redistribute it and/or modify
@@ -19,11 +19,11 @@
 //
 //---------------------------------------------------------------------------------
 
-// Optimization for matrix-shaper in 15 bits. Numbers are operated in 1.15 usigned, 
+// Optimization for matrix-shaper in 15 bits. Numbers are operated in 1.15 unsigned, 
 
 #include "fast_float_internal.h"
 
-// An storage capable to keep 1.15 signed and some extra precission. 
+// An storage capable to keep 1.15 signed and some extra precision. 
 // Actually I use 32 bits integer (signed)
 typedef cmsInt32Number cmsS1Fixed15Number;   
 
@@ -52,7 +52,7 @@ typedef struct {
        // The context
        cmsContext ContextID;
 
-       // Poits to the raw, unaligned memory
+       // Points to the raw, unaligned memory
        void * real_ptr;
 
 
@@ -181,10 +181,14 @@ void MatShaperXform(struct _cmstransform_struct *CMMcargo,
        cmsUInt8Number* bout;
        cmsUInt8Number* aout = NULL;
 
-       cmsUInt32Number nalpha, strideIn, strideOut;
+       cmsUInt32Number nalpha;
+       size_t strideIn, strideOut;
 
        _cmsComputeComponentIncrements(cmsGetTransformInputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneIn, NULL, &nalpha, SourceStartingOrder, SourceIncrements);
        _cmsComputeComponentIncrements(cmsGetTransformOutputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneOut, NULL, &nalpha, DestStartingOrder, DestIncrements);
+
+       if (!(_cmsGetTransformFlags(CMMcargo) & cmsFLAGS_COPY_ALPHA))
+           nalpha = 0;
 
        strideIn = strideOut = 0;
        for (i = 0; i < LineCount; i++) {
@@ -258,7 +262,7 @@ void MatShaperXform(struct _cmstransform_struct *CMMcargo,
 
 
 //  15 bits on input allows matrix-shaper boost up a little bit
-cmsBool OptimizeMatrixShaper15(_cmsTransformFn* TransformFn,
+cmsBool OptimizeMatrixShaper15(_cmsTransform2Fn* TransformFn,
                                    void** UserData,
                                    _cmsFreeUserDataFn* FreeUserData,
                                    cmsPipeline** Lut,
@@ -333,15 +337,15 @@ cmsBool OptimizeMatrixShaper15(_cmsTransformFn* TransformFn,
               _cmsStageToneCurvesData* mpeC1 = (_cmsStageToneCurvesData*)cmsStageData(Curve1);
               _cmsStageToneCurvesData* mpeC2 = (_cmsStageToneCurvesData*)cmsStageData(Curve2);
 
-              // In this particular optimization, caché does not help as it takes more time to deal with 
-              // the caché that with the pixel handling
+              // In this particular optimization, cache does not help as it takes more time to deal with 
+              // the cache than with the pixel handling
               *dwFlags |= cmsFLAGS_NOCACHE;
 
               // Setup the optimizarion routines
               *UserData = SetMatShaper(ContextID, mpeC1->TheCurves, &res, (cmsVEC3*)Data2->Offset, mpeC2->TheCurves, IdentityMat);
               *FreeUserData = FreeMatShaper;
 
-              *TransformFn = (_cmsTransformFn)MatShaperXform;
+              *TransformFn = MatShaperXform;
        }
        
 

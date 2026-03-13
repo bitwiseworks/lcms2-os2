@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System, fast floating point extensions
-//  Copyright (c) 1998-2020 Marti Maria Saguer, all rights reserved
+//  Copyright (c) 1998-2026 Marti Maria Saguer, all rights reserved
 //
 //
 // This program is free software: you can redistribute it and/or modify
@@ -179,7 +179,7 @@ void ComputeIncrementsForPlanar(cmsUInt32Number Format,
 
 
 // Dispatcher por chunky and planar RGB
-void  _cmsComputeComponentIncrements(cmsUInt32Number Format,
+CMSCHECKPOINT void  CMSEXPORT _cmsComputeComponentIncrements(cmsUInt32Number Format,
                                      cmsUInt32Number BytesPerPlane,
                                      cmsUInt32Number* nChannels,
                                      cmsUInt32Number* nAlpha,
