@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System, fast floating point extensions
-//  Copyright (c) 1998-2020 Marti Maria Saguer, all rights reserved
+//  Copyright (c) 1998-2026 Marti Maria Saguer, all rights reserved
 //
 //
 // This program is free software: you can redistribute it and/or modify
@@ -56,12 +56,16 @@ static void FastEvaluateRGBCurves8(struct _cmstransform_struct *CMMcargo,
        cmsUInt8Number* bout;
        cmsUInt8Number* aout = NULL;
 
-       cmsUInt32Number nalpha, strideIn, strideOut;
+       cmsUInt32Number nalpha;
+       size_t strideIn, strideOut;
 
        Curves8Data* Data = (Curves8Data*)_cmsGetTransformUserData(CMMcargo);
 
        _cmsComputeComponentIncrements(cmsGetTransformInputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneIn, NULL, &nalpha, SourceStartingOrder, SourceIncrements);
        _cmsComputeComponentIncrements(cmsGetTransformOutputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneOut, NULL, &nalpha, DestStartingOrder, DestIncrements);
+
+       if (!(_cmsGetTransformFlags(CMMcargo) & cmsFLAGS_COPY_ALPHA))
+           nalpha = 0;
 
        strideIn = strideOut = 0;
        for (i = 0; i < LineCount; i++) {
@@ -132,10 +136,14 @@ static void FastRGBIdentity8(struct _cmstransform_struct *CMMcargo,
        cmsUInt8Number* bout;
        cmsUInt8Number* aout = NULL;
 
-       cmsUInt32Number nalpha, strideIn, strideOut;
+       cmsUInt32Number nalpha;
+       size_t strideIn, strideOut;
     
        _cmsComputeComponentIncrements(cmsGetTransformInputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneIn, NULL, &nalpha, SourceStartingOrder, SourceIncrements);
        _cmsComputeComponentIncrements(cmsGetTransformOutputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneOut, NULL, &nalpha, DestStartingOrder, DestIncrements);
+
+       if (!(_cmsGetTransformFlags(CMMcargo) & cmsFLAGS_COPY_ALPHA))
+           nalpha = 0;
 
        strideIn = strideOut = 0;
        for (i = 0; i < LineCount; i++) {
@@ -203,12 +211,16 @@ static void FastEvaluateGrayCurves8(struct _cmstransform_struct *CMMcargo,
        cmsUInt8Number* gout;
        cmsUInt8Number* aout = NULL;
 
-       cmsUInt32Number nalpha, strideIn, strideOut;
+       cmsUInt32Number nalpha;
+       size_t strideIn, strideOut;
 
        Curves8Data* Data = (Curves8Data*)_cmsGetTransformUserData(CMMcargo);
 
        _cmsComputeComponentIncrements(cmsGetTransformInputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneIn, NULL, &nalpha, SourceStartingOrder, SourceIncrements);
        _cmsComputeComponentIncrements(cmsGetTransformOutputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneOut, NULL, &nalpha, DestStartingOrder, DestIncrements);
+
+       if (!(_cmsGetTransformFlags(CMMcargo) & cmsFLAGS_COPY_ALPHA))
+           nalpha = 0;
 
        strideIn = strideOut = 0;
        for (i = 0; i < LineCount; i++) {
@@ -265,10 +277,14 @@ static void FastGrayIdentity8(struct _cmstransform_struct *CMMcargo,
        cmsUInt8Number* gout;
        cmsUInt8Number* aout = NULL;
 
-       cmsUInt32Number nalpha, strideIn, strideOut;
+       cmsUInt32Number nalpha;
+       size_t strideIn, strideOut;
        
        _cmsComputeComponentIncrements(cmsGetTransformInputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneIn, NULL, &nalpha, SourceStartingOrder, SourceIncrements);
        _cmsComputeComponentIncrements(cmsGetTransformOutputFormat((cmsHTRANSFORM)CMMcargo), Stride->BytesPerPlaneOut, NULL, &nalpha, DestStartingOrder, DestIncrements);
+
+       if (!(_cmsGetTransformFlags(CMMcargo) & cmsFLAGS_COPY_ALPHA))
+           nalpha = 0;
 
        strideIn = strideOut = 0;
        for (i = 0; i < LineCount; i++) {
@@ -352,7 +368,7 @@ Curves8Data* ComputeCompositeCurves(cmsUInt32Number nChan,  cmsPipeline* Src)
 // If the target LUT holds only curves, the optimization procedure is to join all those
 // curves together. That only works on curves and does not work on matrices. 
 // Any number of channels up to 16
-cmsBool Optimize8ByJoiningCurves(_cmsTransformFn* TransformFn,                                  
+cmsBool Optimize8ByJoiningCurves(_cmsTransform2Fn* TransformFn,                                  
                                  void** UserData,
                                  _cmsFreeUserDataFn* FreeUserData,
                                  cmsPipeline** Lut, 
@@ -366,7 +382,7 @@ cmsBool Optimize8ByJoiningCurves(_cmsTransformFn* TransformFn,
     Curves8Data* Data;
     cmsUInt32Number nChans;
 
-    // This is a loosy optimization! does not apply in floating-point cases
+    // This is a lossy optimization! does not apply in floating-point cases
     if (T_FLOAT(*InputFormat) || T_FLOAT(*OutputFormat)) return FALSE;
 
     // Only on 8-bit
@@ -396,9 +412,9 @@ cmsBool Optimize8ByJoiningCurves(_cmsTransformFn* TransformFn,
 
     // Maybe the curves are linear at the end
     if (nChans == 1)
-        *TransformFn = (_cmsTransformFn) (AllCurvesAreLinear(Data) ? FastGrayIdentity8 : FastEvaluateGrayCurves8);
+        *TransformFn = (AllCurvesAreLinear(Data) ? FastGrayIdentity8 : FastEvaluateGrayCurves8);
     else
-        *TransformFn = (_cmsTransformFn) (AllCurvesAreLinear(Data) ? FastRGBIdentity8 : FastEvaluateRGBCurves8);
+        *TransformFn = (AllCurvesAreLinear(Data) ? FastRGBIdentity8 : FastEvaluateRGBCurves8);
 
     return TRUE;
 

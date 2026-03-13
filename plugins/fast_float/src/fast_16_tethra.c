@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System, fast floating point extensions
-//  Copyright (c) 1998-2020 Marti Maria Saguer, all rights reserved
+//  Copyright (c) 1998-2026 Marti Maria Saguer, all rights reserved
 //
 //
 // This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 #include "fast_float_internal.h"
 
 // lcms internal
-cmsBool  _cmsOptimizePipeline(cmsContext ContextID,
+CMSAPI cmsBool  CMSEXPORT _cmsOptimizePipeline(cmsContext ContextID,
                               cmsPipeline** Lut,
                               cmsUInt32Number  Intent,
                               cmsUInt32Number* InputFormat,
@@ -112,16 +112,20 @@ void PerformanceEval16(struct _cmstransform_struct *CMMcargo,
 
        int    in16, out16;  // Used by macros!
 
-       cmsUInt32Number nalpha, strideIn, strideOut;
+       cmsUInt32Number nalpha;
+       size_t strideIn, strideOut;
           
        cmsUInt32Number dwInFormat = cmsGetTransformInputFormat((cmsHTRANSFORM)CMMcargo);
        cmsUInt32Number dwOutFormat = cmsGetTransformOutputFormat((cmsHTRANSFORM)CMMcargo);
-
+       
        _cmsComputeComponentIncrements(dwInFormat, Stride->BytesPerPlaneIn, NULL, &nalpha, SourceStartingOrder, SourceIncrements);
        _cmsComputeComponentIncrements(dwOutFormat, Stride->BytesPerPlaneOut, NULL, &nalpha, DestStartingOrder, DestIncrements);
 
        in16  = (T_BYTES(dwInFormat) == 2);
        out16 = (T_BYTES(dwOutFormat) == 2);
+
+       if (!(_cmsGetTransformFlags((cmsHTRANSFORM)CMMcargo) & cmsFLAGS_COPY_ALPHA))
+           nalpha = 0;
 
        strideIn = strideOut = 0;
        for (i = 0; i < LineCount; i++) {
@@ -289,7 +293,8 @@ void PerformanceEval16(struct _cmstransform_struct *CMMcargo,
                   if (ain)
                   {
                       res16 = *(const cmsUInt16Number*)ain;
-                      TO_OUTPUT(out[OutChan], res16);
+                      TO_OUTPUT(out[TotalOut], res16);
+                      ain += SourceIncrements[3];
                       out[TotalOut] += DestIncrements[TotalOut];
                   }
 
@@ -306,7 +311,7 @@ void PerformanceEval16(struct _cmstransform_struct *CMMcargo,
 
 // --------------------------------------------------------------------------------------------------------------
 
-cmsBool Optimize16BitRGBTransform(_cmsTransformFn* TransformFn,
+cmsBool Optimize16BitRGBTransform(_cmsTransform2Fn* TransformFn,
                                   void** UserData,
                                   _cmsFreeUserDataFn* FreeDataFn,
                                   cmsPipeline** Lut, 
@@ -314,7 +319,6 @@ cmsBool Optimize16BitRGBTransform(_cmsTransformFn* TransformFn,
                                   cmsUInt32Number* OutputFormat, 
                                   cmsUInt32Number* dwFlags)      
 {
-    cmsStage* mpe;
     Performance16Data* p16;
     cmsContext ContextID;
     _cmsStageCLutData* data;
@@ -325,7 +329,7 @@ cmsBool Optimize16BitRGBTransform(_cmsTransformFn* TransformFn,
     // For empty transforms, do nothing
     if (*Lut == NULL) return FALSE;
 
-    // This is a loosy optimization! does not apply in floating-point cases
+    // This is a lossy optimization! does not apply in floating-point cases
     if (T_FLOAT(*InputFormat) || T_FLOAT(*OutputFormat)) return FALSE;
 
     // Only on 16-bit
@@ -334,16 +338,23 @@ cmsBool Optimize16BitRGBTransform(_cmsTransformFn* TransformFn,
     // Only real 16 bits
     if (T_BIT15(*InputFormat) != 0 || T_BIT15(*OutputFormat) != 0) return FALSE;
 
+	// Swap endian is not supported
+    if (T_ENDIAN16(*InputFormat) != 0 || T_ENDIAN16(*OutputFormat) != 0) return FALSE;
+
     // Only on input RGB
     if (T_COLORSPACE(*InputFormat)  != PT_RGB) return FALSE;
     
-   // Named color pipelines cannot be optimized either
-   for (mpe = cmsPipelineGetPtrToFirstStage(*Lut);
-         mpe != NULL;
-         mpe = cmsStageNext(mpe)) {
-            if (cmsStageType(mpe) == cmsSigNamedColorElemType) return FALSE;
-    }
 
+    // If this is a matrix-shaper, the default does already a good job
+    if (cmsPipelineCheckAndRetreiveStages(*Lut, 4,
+        cmsSigCurveSetElemType, cmsSigMatrixElemType, cmsSigMatrixElemType, cmsSigCurveSetElemType,
+        NULL, NULL, NULL, NULL)) return FALSE;
+
+    if (cmsPipelineCheckAndRetreiveStages(*Lut, 2,
+        cmsSigCurveSetElemType, cmsSigCurveSetElemType,
+        NULL, NULL)) return FALSE;
+
+   
     ContextID = cmsGetPipelineContextID(*Lut);
     newFlags = *dwFlags | cmsFLAGS_FORCE_CLUT;
 
@@ -362,7 +373,7 @@ cmsBool Optimize16BitRGBTransform(_cmsTransformFn* TransformFn,
     p16 = Performance16alloc(ContextID, data->Params);
     if (p16 == NULL) return FALSE;
 
-    *TransformFn = (_cmsTransformFn) PerformanceEval16;
+    *TransformFn = PerformanceEval16;
     *UserData   = p16;
     *FreeDataFn = Performance16free;
     *InputFormat  |= 0x02000000;

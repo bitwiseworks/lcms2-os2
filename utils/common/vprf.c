@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System
-//  Copyright (c) 1998-2020 Marti Maria Saguer
+//  Copyright (c) 1998-2026 Marti Maria Saguer
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the "Software"),
@@ -113,6 +113,8 @@ cmsHPROFILE OpenStockProfile(cmsContext ContextID, const char* File)
        if (cmsstrcasecmp(File, "*null") == 0)
                 return cmsCreateNULLProfileTHR(ContextID);
 
+       if (cmsstrcasecmp(File, "*oklab") == 0)
+           return cmsCreate_OkLabProfile(ContextID);
 
        if (cmsstrcasecmp(File, "*Lin2222") == 0) {
 
@@ -142,7 +144,7 @@ void PrintBuiltins(void)
                      "\t*Gray22 - Monochrome of Gamma 2.2\n"
                      "\t*Gray30 - Monochrome of Gamma 3.0\n"
                      "\t*null   - Monochrome black for all input\n"
-                     "\t*Lin2222- CMYK linearization of gamma 2.2 on each channel\n");
+                     "\t*Lin2222- CMYK linearization of gamma 2.2 on each channel\n\n");
 }
 
 
@@ -231,7 +233,7 @@ void PrintRenderingIntents(void)
     char* Descriptions[200];
     cmsUInt32Number n, i;
 
-    fprintf(stderr, "%ct<n> rendering intent:\n\n", SW);
+    fprintf(stderr, "-t<n> rendering intent:\n\n");
 
     n = cmsGetSupportedIntents(200, Codes, Descriptions);
 
@@ -254,7 +256,7 @@ cmsBool SaveMemoryBlock(const cmsUInt8Number* Buffer, cmsUInt32Number dwLen, con
     }
 
     if (fwrite(Buffer, 1, dwLen, out) != dwLen) {
-        FatalError("Cannot write %ld bytes to %s", dwLen, Filename);
+        FatalError("Cannot write %ld bytes to %s", (long) dwLen, Filename);
         return FALSE;
     }
 
